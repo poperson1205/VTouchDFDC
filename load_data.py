@@ -16,16 +16,7 @@ with open(meta_path) as f:
         print(video_name)
         video_path = os.path.join(DIR, video_name)
         capture_image = cv2.VideoCapture(video_path)
-        count = 0
         while True:
-            print(count)
-            count += 1
             ret, frame = capture_image.read()
             if ret is False:
                 break
-
-            # Test
-            plt.clf()
-            plt.axis('off')
-            plt.imshow(frame)
-            plt.pause(.1)
