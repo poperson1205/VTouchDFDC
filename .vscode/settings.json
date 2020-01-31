@@ -1,0 +1,5 @@
+{
+    "python.pythonPath": "/opt/conda/envs/VTouchDFDC/bin/python",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
+}
