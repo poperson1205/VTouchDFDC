@@ -8,7 +8,7 @@ import json
 from facenet_pytorch import MTCNN, InceptionResnetV1
 from PIL import Image
 
-mtcnn = MTCNN()
+mtcnn = MTCNN(keep_all=True, device='cuda')
 
 DIR = '/workspace/code/dfdc_train_part_0'
 
@@ -20,20 +20,21 @@ with open(meta_path) as f:
         print(video_name)
         video_path = os.path.join(DIR, video_name)
         capture_image = cv2.VideoCapture(video_path)
+        frame_count = 0
         while True:
-            ret, frame = capture_image.read()
+            ret, cv_img = capture_image.read()
             if ret is False:
                 break
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = Image.fromarray(frame)
-            face = mtcnn(frame)
-            if face is None:
+            pil_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+            boxes, _ = mtcnn.detect(pil_img)
+            if boxes is None:
                 continue
 
-            face = np.transpose(face, (1, 2, 0))
-            face = np.array(face)
-            face = (face + 1.0)/2.0
+            box_count = 0
+            for box in boxes:
+                box = box.astype(int)
+                face_img = cv_img[box[1]:box[3], box[0]:box[2]]
+                cv2.imwrite(video_path.rsplit('.')[0] + '-{0}-{1}.jpg'.format(frame_count, box_count), face_img)
+                box_count += 1
 
-            plt.clf()
-            plt.imshow(face)
-            plt.pause(.1)
+            frame_count += 1
