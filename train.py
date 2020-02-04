@@ -25,8 +25,6 @@ def load_image_as_tensor(image_path, image_size=224):
 
 
 
-
-
 from torch.utils.data import Dataset
 
 
@@ -53,8 +51,24 @@ class VideoDataset(Dataset):
 
 dataset = VideoDataset(crops_dir, metadata_df, 'train')
 
-for data in dataset:
-    plt.imshow(data[0].permute(1, 2, 0))
-    plt.pause(1)
+
+
+def make_splits(crops_dir, metadata_df, frac):
+    real_rows = metadata_df[metadata_df['label'] == 'REAL']
+    real_df = real_rows.sample(frac=frac, random_state=666)
+    fake_df = metadata_df[metadata_df['original'].isin(real_df['videoname'])]
+    
+    val_df = pd.concat([real_df, fake_df])
+    train_df = metadata_df.loc[~metadata_df.index.isin(val_df.index)]
+    return train_df, val_df
+
+
+
+train_df, val_df = make_splits(crops_dir, metadata_df, frac=0.05)
+
+assert(len(train_df) + len(val_df) == len(metadata_df))
+assert(len(train_df[train_df["videoname"].isin(val_df["videoname"])]) == 0)
+
+del train_df, val_df
 
 del dataset
