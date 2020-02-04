@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from tqdm.notebook import tqdm
 
 import matplotlib.pyplot as plt
+from efficientnet_pytorch import EfficientNet
 
 crops_dir = '../deep-faces/faces_224'
 
@@ -82,78 +83,73 @@ train_loader, val_loader = create_data_loaders(crops_dir, metadata_df, image_siz
 
 
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.avg_pool = nn.AvgPool2d(53)
-        self.fc = nn.Linear(16, 2)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.avg_pool(self.pool(F.relu(self.conv2(x))))
-        x = x.view(-1, 16)
-        x = F.relu(self.fc(x))
-        return x
-
-net = Net()
+model = EfficientNet.from_pretrained('efficientnet-b0', num_classes=1)
+model.cuda()
 
 
 
 import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
-# optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-# for epoch in range(2):
+for epoch in range(5):
     
-#     running_loss = 0.0
-#     for i, data in enumerate(train_loader, 0):
-#         inputs, labels = data
-        
-#         optimizer.zero_grad()
-
-#         outputs = net(inputs)
-#         loss = criterion(outputs, labels)
-#         loss.backward()
-#         optimizer.step()
-
-#         running_loss += loss.item()
-#         if i % 1421 == 1420:
-#             print('[%d, %5d] loss: %.3f' %
-#                   (epoch + 1, i + 1, running_loss / 2000))
-#             running_loss = 0.0
-
-# print('Finished Training')
-
-# torch.save(net.state_dict(), 'binary_classifier.pth')
-
-
-
-checkpoint = torch.load('binary_classifier.pth', map_location=gpu)
-net.load_state_dict(checkpoint)
-
-net.cuda()
-
-def evaluate(net, data_loader, device):
-    net.train(False)
-
-    loss = 0
+    bce_loss = 0.0
     total_examples = 0
 
-    for data in data_loader:
-        with torch.no_grad():
-            batch_size = data[0].shape[0]
-            x = data[0].to(device)
-            y_true = data[1].to(device)
-            y_pred = net(x)
-            loss += criterion(y_pred, y_true)
+    for batch_idx, data in enumerate(train_loader):
+        batch_size = data[0].shape[0]
+        x = data[0].to(gpu)
+        y_true = data[1].to(gpu).float()
+        
+        optimizer.zero_grad()
 
+        y_pred = model(x)
+        y_pred = y_pred.squeeze()
+
+        loss = F.binary_cross_entropy_with_logits(y_pred, y_true)
+        loss.backward()
+        optimizer.step()
+
+        batch_bce = loss.item()
+        bce_loss += batch_bce * batch_size
         total_examples += batch_size
-    
-    loss /= total_examples
-    return loss
 
-print(evaluate(net, val_loader, gpu))
+        print('Progress: %3d / %3d, batch BCE: %.4f' % (batch_idx+1, len(train_loader), batch_bce))
+
+    bce_loss /= total_examples
+    print('Epoch: %3d, train BCE: %.4f' % (epoch+1, bce_loss))
+
+
+print('Finished Training')
+
+torch.save(model.state_dict(), 'binary_classifier.pth')
+
+
+
+# checkpoint = torch.load('binary_classifier.pth', map_location=gpu)
+# model.load_state_dict(checkpoint)
+
+# model.cuda()
+
+# def evaluate(model, data_loader, device):
+#     model.train(False)
+
+#     loss = 0
+#     total_examples = 0
+
+#     for data in data_loader:
+#         with torch.no_grad():
+#             batch_size = data[0].shape[0]
+#             x = data[0].to(device)
+#             y_true = data[1].to(device)
+#             y_pred = model(x)
+#             loss += criterion(y_pred, y_true)
+
+#         total_examples += batch_size
+    
+#     loss /= total_examples
+#     return loss
+
+# print(evaluate(model, val_loader, gpu))
