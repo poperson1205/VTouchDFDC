@@ -11,7 +11,7 @@ from tqdm.notebook import tqdm
 
 import matplotlib.pyplot as plt
 
-crops_dir = '../deep-faces/faces_155'
+crops_dir = '../deep-faces/faces_224'
 
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
