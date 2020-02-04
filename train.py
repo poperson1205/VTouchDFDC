@@ -17,6 +17,11 @@ gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 metadata_df = pd.read_csv('../deep-faces/metadata.csv')
 
+image_size = 224
+batch_size = 64
+
+
+
 def load_image_as_tensor(image_path, image_size=224):
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -49,10 +54,6 @@ class VideoDataset(Dataset):
 
 
 
-dataset = VideoDataset(crops_dir, metadata_df, 'train')
-
-
-
 def make_splits(crops_dir, metadata_df, frac):
     real_rows = metadata_df[metadata_df['label'] == 'REAL']
     real_df = real_rows.sample(frac=frac, random_state=666)
@@ -64,11 +65,22 @@ def make_splits(crops_dir, metadata_df, frac):
 
 
 
-train_df, val_df = make_splits(crops_dir, metadata_df, frac=0.05)
+from torch.utils.data import DataLoader
 
-assert(len(train_df) + len(val_df) == len(metadata_df))
-assert(len(train_df[train_df["videoname"].isin(val_df["videoname"])]) == 0)
+def create_data_loaders(crops_dir, metadata_df, image_size, batch_size, num_workers):
+    train_df, val_df = make_splits(crops_dir, metadata_df, frac=0.05)
 
-del train_df, val_df
+    train_dataset = VideoDataset(crops_dir, train_df, 'train', image_size)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
-del dataset
+    val_dataset = VideoDataset(crops_dir, val_df, 'val', image_size)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
+    
+    return train_loader, val_loader
+
+train_loader, val_loader = create_data_loaders(crops_dir, metadata_df, image_size, batch_size, num_workers=0)
+
+image_tensor, class_index = next(iter(train_loader))
+plt.imshow(image_tensor[0].permute(1, 2, 0))
+plt.pause(1)
+print(class_index[0])
