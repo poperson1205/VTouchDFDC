@@ -105,27 +105,55 @@ net = Net()
 import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+# optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-for epoch in range(2):
+# for epoch in range(2):
     
-    running_loss = 0.0
-    for i, data in enumerate(train_loader, 0):
-        inputs, labels = data
+#     running_loss = 0.0
+#     for i, data in enumerate(train_loader, 0):
+#         inputs, labels = data
         
-        optimizer.zero_grad()
+#         optimizer.zero_grad()
 
-        outputs = net(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+#         outputs = net(inputs)
+#         loss = criterion(outputs, labels)
+#         loss.backward()
+#         optimizer.step()
 
-        running_loss += loss.item()
-        if i % 1421 == 1420:
-            print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 2000))
-            running_loss = 0.0
+#         running_loss += loss.item()
+#         if i % 1421 == 1420:
+#             print('[%d, %5d] loss: %.3f' %
+#                   (epoch + 1, i + 1, running_loss / 2000))
+#             running_loss = 0.0
 
-print('Finished Training')
+# print('Finished Training')
 
-torch.save(net.state_dict(), 'binary_classifier.pth')
+# torch.save(net.state_dict(), 'binary_classifier.pth')
+
+
+
+checkpoint = torch.load('binary_classifier.pth', map_location=gpu)
+net.load_state_dict(checkpoint)
+
+net.cuda()
+
+def evaluate(net, data_loader, device):
+    net.train(False)
+
+    loss = 0
+    total_examples = 0
+
+    for data in data_loader:
+        with torch.no_grad():
+            batch_size = data[0].shape[0]
+            x = data[0].to(device)
+            y_true = data[1].to(device)
+            y_pred = net(x)
+            loss += criterion(y_pred, y_true)
+
+        total_examples += batch_size
+    
+    loss /= total_examples
+    return loss
+
+print(evaluate(net, val_loader, gpu))
