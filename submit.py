@@ -1,3 +1,18 @@
+# MODE = 'KAGGLE'
+MODE = 'LOCAL'
+
+if MODE == 'LOCAL':
+    model_parameter_path = './binary_classifier.pth'
+    test_dataset_dir = '../deepfake-detection-challenge/train_sample_videos'
+    output_submission_file_path = './submission.csv'
+elif MODE == 'KAGGLE':
+    model_parameter_path = '/kaggle/input/models/binary_classifier.pth'
+    test_dataset_dir = '/kaggle/input/deepfake-detection-challenge/test_videos'
+    output_submission_file_path = '/kaggle/working/submission.csv'
+    efficientnet_pakage_path = '../input/efficientnetpytorch/EfficientNet-PyTorch'
+    sys.path.append(efficientnet_pakage_path)
+    os.system('pip install /kaggle/input/mtcnnwheel/mtcnn-0.1.0-py3-none-any.whl')
+
 import os, sys, random
 import numpy as np
 import pandas as pd
@@ -11,11 +26,8 @@ from tqdm.notebook import tqdm
 
 import matplotlib.pyplot as plt
 
-efficientnet_pakage_path = '../input/efficientnetpytorch/EfficientNet-PyTorch'
-sys.path.append(efficientnet_pakage_path)
 from efficientnet_pytorch import EfficientNet
 
-os.system('pip install /kaggle/input/mtcnnwheel/mtcnn-0.1.0-py3-none-any.whl')
 from mtcnn import MTCNN
 
 from PIL import Image
@@ -23,9 +35,13 @@ import sys
 
 
 
+
+
 image_size = 224
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 detector = MTCNN()
+
+
 
 
 
@@ -60,16 +76,17 @@ def predict(video_path):
 
 
 
-#override_params = {'num_classes': 1}
+
+
 model = EfficientNet.from_name('efficientnet-b0', {'num_classes': 1})
-checkpoint = torch.load('/kaggle/input/models/binary_classifier.pth', map_location=gpu)
+checkpoint = torch.load(model_parameter_path, map_location=gpu)
 model.load_state_dict(checkpoint)
 model.cuda()
 model.train(False)
 
 predictions = []
 
-for root, _, filenames in os.walk('/kaggle/input/deepfake-detection-challenge/test_videos'):
+for root, _, filenames in os.walk(test_dataset_dir):
     for count, filename in enumerate(filenames, 1):
         if filename.endswith('.mp4'):
             filepath = os.path.join(root, filename)
@@ -78,5 +95,5 @@ for root, _, filenames in os.walk('/kaggle/input/deepfake-detection-challenge/te
             print('%s: %f (%3d / %3d)' % (filename, prediction, count, len(filenames)))
             
 df = pd.DataFrame(data=predictions, columns=['filename', 'label'])
-df.sort_values('filename').to_csv('/kaggle/working/submission.csv', index=False)
+df.sort_values('filename').to_csv(output_submission_file_path, index=False)
 print('complete!')

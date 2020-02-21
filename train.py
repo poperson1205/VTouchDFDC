@@ -19,7 +19,7 @@ gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 metadata_df = pd.read_csv('../deep-faces/metadata.csv')
 
 image_size = 224
-batch_size = 64
+batch_size = 32
 
 
 
@@ -37,11 +37,26 @@ from torch.utils.data import Dataset
 
 class VideoDataset(Dataset):
     
-    def __init__(self, crops_dir, df, split, image_size=224):
+    def __init__(self, crops_dir, df, split, image_size=224, sample_size=None, seed=None):
         self.crops_dir = crops_dir
-        self.df = df
         self.split = split
         self.image_size = image_size
+
+        if sample_size is not None:
+            real_df = df[df['label'] == 'REAL']
+            fake_df = df[df['label'] == 'FAKE']
+            sample_size = np.min(np.array([sample_size, len(real_df), len(fake_df)]))
+            print('%s: sampling %d from %d real videos' % (split, sample_size, len(real_df)))
+            print('%s: sampling %d from %d fake videos' % (split, sample_size, len(fake_df)))
+            real_df = real_df.sample(sample_size, random_state=seed)
+            fake_df = fake_df.sample(sample_size, random_state=seed)
+            self.df = pd.concat([real_df, fake_df])
+        else:
+            self.df = df
+
+        num_real = len(self.df[self.df['label'] == 'REAL'])
+        num_fake = len(self.df[self.df['label'] == 'FAKE'])
+        print('%s dataset has %d real videos, %d fake videos' % (split, num_real, num_fake))
 
     def __getitem__(self, index):
         row = self.df.iloc[index]
@@ -71,10 +86,10 @@ from torch.utils.data import DataLoader
 def create_data_loaders(crops_dir, metadata_df, image_size, batch_size, num_workers):
     train_df, val_df = make_splits(crops_dir, metadata_df, frac=0.05)
 
-    train_dataset = VideoDataset(crops_dir, train_df, 'train', image_size)
+    train_dataset = VideoDataset(crops_dir, train_df, 'train', image_size, sample_size=10000)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
-    val_dataset = VideoDataset(crops_dir, val_df, 'val', image_size)
+    val_dataset = VideoDataset(crops_dir, val_df, 'val', image_size, sample_size=500, seed=1234)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
     
     return train_loader, val_loader
