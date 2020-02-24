@@ -6,6 +6,7 @@ import cv2
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import Normalize
 
 from tqdm.notebook import tqdm
 
@@ -20,14 +21,15 @@ metadata_df = pd.read_csv('../deep-faces/metadata.csv')
 
 image_size = 224
 batch_size = 32
-
-
+mean = [0.485, 0.456, 0.406]
+std = [0.229, 0.224, 0.225]
+normalize_transform = Normalize(mean,std)
 
 def load_image_as_tensor(image_path, image_size=224):
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = cv2.resize(img, (image_size, image_size))
-    return torch.tensor(img).permute((2, 0, 1)).float().div(255)
+    return normalize_transform(torch.tensor(img).permute((2, 0, 1)).float().div(255))
 
 
 
@@ -108,63 +110,63 @@ import torch.optim as optim
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-# for epoch in range(5):
+for epoch in range(5):
     
-#     bce_loss = 0.0
-#     total_examples = 0
-
-#     for batch_idx, data in enumerate(train_loader):
-#         batch_size = data[0].shape[0]
-#         x = data[0].to(gpu)
-#         y_true = data[1].to(gpu).float()
-        
-#         optimizer.zero_grad()
-
-#         y_pred = model(x)
-#         y_pred = y_pred.squeeze()
-
-#         loss = F.binary_cross_entropy_with_logits(y_pred, y_true)
-#         loss.backward()
-#         optimizer.step()
-
-#         batch_bce = loss.item()
-#         bce_loss += batch_bce * batch_size
-#         total_examples += batch_size
-
-#         print('Progress: %3d / %3d, batch BCE: %.4f' % (batch_idx+1, len(train_loader), batch_bce))
-
-#     bce_loss /= total_examples
-#     print('Epoch: %3d, train BCE: %.4f' % (epoch+1, bce_loss))
-
-
-# print('Finished Training')
-
-# torch.save(model.state_dict(), 'binary_classifier.pth')
-
-
-
-checkpoint = torch.load('binary_classifier.pth', map_location=gpu)
-model.load_state_dict(checkpoint)
-
-model.cuda()
-
-def evaluate(model, data_loader, device):
-    model.train(False)
-
-    loss = 0
+    bce_loss = 0.0
     total_examples = 0
 
-    for data in data_loader:
-        with torch.no_grad():
-            batch_size = data[0].shape[0]
-            x = data[0].to(device)
-            y_true = data[1].to(device).float()
-            y_pred = model(x).squeeze()
-            loss += F.binary_cross_entropy_with_logits(y_pred, y_true).item() * batch_size
+    for batch_idx, data in enumerate(train_loader):
+        batch_size = data[0].shape[0]
+        x = data[0].to(gpu)
+        y_true = data[1].to(gpu).float()
+        
+        optimizer.zero_grad()
 
+        y_pred = model(x)
+        y_pred = y_pred.squeeze()
+
+        loss = F.binary_cross_entropy_with_logits(y_pred, y_true)
+        loss.backward()
+        optimizer.step()
+
+        batch_bce = loss.item()
+        bce_loss += batch_bce * batch_size
         total_examples += batch_size
-    
-    loss /= total_examples
-    return loss
 
-print(evaluate(model, val_loader, gpu))
+        print('Progress: %3d / %3d, batch BCE: %.4f' % (batch_idx+1, len(train_loader), batch_bce))
+
+    bce_loss /= total_examples
+    print('Epoch: %3d, train BCE: %.4f' % (epoch+1, bce_loss))
+
+
+print('Finished Training')
+
+torch.save(model.state_dict(), 'binary_classifier.pth')
+
+
+
+# checkpoint = torch.load('binary_classifier.pth', map_location=gpu)
+# model.load_state_dict(checkpoint)
+
+# model.cuda()
+
+# def evaluate(model, data_loader, device):
+#     model.train(False)
+
+#     loss = 0
+#     total_examples = 0
+
+#     for data in data_loader:
+#         with torch.no_grad():
+#             batch_size = data[0].shape[0]
+#             x = data[0].to(device)
+#             y_true = data[1].to(device).float()
+#             y_pred = model(x).squeeze()
+#             loss += F.binary_cross_entropy_with_logits(y_pred, y_true).item() * batch_size
+
+#         total_examples += batch_size
+    
+#     loss /= total_examples
+#     return loss
+
+# print(evaluate(model, val_loader, gpu))

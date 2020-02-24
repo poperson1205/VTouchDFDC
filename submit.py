@@ -21,6 +21,7 @@ import cv2
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import Normalize
 
 from tqdm.notebook import tqdm
 
@@ -38,6 +39,9 @@ import sys
 
 
 image_size = 224
+mean = [0.485, 0.456, 0.406]
+std = [0.229, 0.224, 0.225]
+normalize_transform = Normalize(mean,std)
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 detector = MTCNN()
 
@@ -68,7 +72,9 @@ def predict(video_path):
     # Convert image to tensor        
     face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
     face_img = cv2.resize(face_img, (image_size, image_size))
-    x = torch.tensor(face_img).permute((2, 0, 1)).float().div(255).unsqueeze(0).cuda()
+    x = torch.tensor(face_img).permute((2, 0, 1))
+    x = normalize_transform(x / 255.)
+    x = x.unsqueeze(0).cuda()
 
     with torch.no_grad():
         y = torch.sigmoid(model(x).squeeze()).cpu().numpy()
