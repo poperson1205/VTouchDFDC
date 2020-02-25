@@ -18,4 +18,7 @@ docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --gpus a
 
 ## Progress
 - [x] Submit randomly generated estimations --> (score: 1.00441, rank: 1311/1457)
-- [ ] Train binary classifier
+- [x] Train binary classifier
+- [x] Balance positive/negative examples
+- [x] Normalize input images
+- [x] Check multiple frames for each video

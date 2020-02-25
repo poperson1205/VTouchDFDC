@@ -49,36 +49,75 @@ detector = MTCNN()
 
 
 
+def get_frames(video_path):
+    capture = cv2.VideoCapture(video_path)
+
+    num_frames = 17
+    frame_count = capture.get(cv2.CAP_PROP_FRAME_COUNT)
+
+    frame_idxs = np.linspace(0, frame_count-1, num_frames, endpoint=True, dtype=np.int)
+
+    frames = []
+    idxs_read = []
+    for frame_idx in range(frame_idxs[0], frame_idxs[-1] + 1):
+        ret = capture.grab()
+        if not ret:
+            print("Error grabbing frame %d from movie %s" % (frame_idx, video_path))
+            break
+        current = len(idxs_read)
+        if frame_idx == frame_idxs[current]:
+            ret, frame = capture.retrieve()
+            if not ret or frame is None:
+                print("Error retrieving frame %d from movie %s" % (frame_idx, video_path))
+                break
+            frames.append(frame)
+            idxs_read.append(frame_idx)
+
+    return frames
+
+
+
+
+
 def predict(video_path):
     default_prediction = 0.5
-    capture_image = cv2.VideoCapture(video_path)
 
     # Get first frame
-    ret, cv_img = capture_image.read()
-    if ret is False:
-        return default_prediction
-    img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-    results = detector.detect_faces(img)
-    if results is None or len(results) == 0:
+    frames = get_frames(video_path)
+    if len(frames) == 0:
         return default_prediction
 
-    # Get face
-    box = np.array(results[0]['box'])
-    box = box.astype(int)
-    face_img = cv_img[box[1]:(box[1]+box[3]), box[0]:(box[0]+box[2])]
-    if face_img.size == 0:
+    faces = []
+    for frame in frames:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = detector.detect_faces(frame)
+        if results is None or len(results) == 0:
+            continue
+
+        # Get face
+        box = np.array(results[0]['box'])
+        box = box.astype(int)
+        face = frame[box[1]:(box[1]+box[3]), box[0]:(box[0]+box[2])]
+        if face.size == 0:
+            continue
+
+        # Convert image to tensor        
+        face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+        face = cv2.resize(face, (image_size, image_size))
+        faces.append(face)
+
+    if len(faces) == 0:
         return default_prediction
 
-    # Convert image to tensor        
-    face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
-    face_img = cv2.resize(face_img, (image_size, image_size))
-    x = torch.tensor(face_img).permute((2, 0, 1))
-    x = normalize_transform(x / 255.)
-    x = x.unsqueeze(0).cuda()
+    x = np.stack(faces)
+    x = torch.tensor(x, device=gpu).float().permute((0, 3, 1, 2))
+    for i in range(len(x)):
+        x[i] = normalize_transform(x[i] / 255.)
 
     with torch.no_grad():
-        y = torch.sigmoid(model(x).squeeze()).cpu().numpy()
-        return y
+        y = torch.sigmoid(model(x).squeeze()).mean().item()
+
+    return y
 
 
 
