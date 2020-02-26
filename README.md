@@ -21,4 +21,4 @@ docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --gpus a
 - [x] Train binary classifier
 - [x] Balance positive/negative examples
 - [x] Normalize input images
-- [x] Check multiple frames for each video
+- [x] Check multiple frames for each video --> (score: 0.62684, rank: 865/1928)
