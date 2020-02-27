@@ -1,5 +1,6 @@
 {
     "python.pythonPath": "/opt/conda/envs/VTouchDFDC/bin/python",
     "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "docker.host":"ssh://vtouchgpuserver03@vtouch5f.iptime.org:10012"
 }
