@@ -73,14 +73,32 @@ if __name__ == '__main__':
             # cv2.imshow('test', frame)
             # cv2.waitKey(1000)
 
-            frame_indices, frames = get_frames(video_path, 2)
+            frame_indices, frames = get_frames(video_path, 32)
             if len(frames) == 0:
                 print('%s: Failed to get images from video' % (frames))
                 continue
 
             results = {}
-            for frame_index, frame in zip(frame_indices, frames):
-                detection_results = detector.detect_faces(frame)
+            # for frame_index, frame in zip(frame_indices, frames):
+            #     detection_results = detector.detect_faces(frame)
+            #     if detection_results is None:
+            #         continue
+                
+            #     results[frame_index] = detection_results
+                
+            #     for face_index, detection_result in enumerate(detection_results):
+            #         box = np.array(detection_result['box'])
+            #         box = box.astype(int)
+
+            #         face = frame[box[1]:box[3], box[0]:box[2]]
+            #         if face.size == 0:
+            #             continue
+
+            #         path = os.path.join(output_folder, '%s-%d-%d.png' % (video_name[:-4], frame_index, face_index))
+            #         cv2.imwrite(path, cv2.resize(face, (image_size, image_size)))
+
+            list_detection_results = detector.detect_faces_batch(frames)
+            for frame_index, frame, detection_results in zip(frame_indices, frames, list_detection_results):
                 if detection_results is None:
                     continue
                 
@@ -98,7 +116,6 @@ if __name__ == '__main__':
                     cv2.imwrite(path, cv2.resize(face, (image_size, image_size)))
 
             attributes['face'] = results
-            break
 
         with open(os.path.join(output_folder, 'metadata.json'), "w") as fp:
             json.dump(metadata, fp)

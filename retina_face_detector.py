@@ -182,3 +182,106 @@ class RetinaFaceDetector:
             results.append({'box':box.tolist(), 'score':score.tolist(), 'keypoints':keypoints.tolist()})
 
         return results
+
+    def detect_faces_batch(self, img_raws, mean=(104, 117, 123)):
+        imgs = []
+        for img_raw in img_raws:
+            imgs.append(np.float32(img_raw))
+        imgs = np.stack(imgs, 0)
+
+        batch_size, im_height, im_width, _ = imgs.shape
+        scale = torch.Tensor([imgs.shape[2], imgs.shape[1], imgs.shape[2], imgs.shape[1]])
+
+        imgs -= mean
+        imgs = imgs.transpose(0, 3, 1, 2)
+        imgs = torch.from_numpy(imgs)
+        imgs = imgs.to(self.device)
+        scale = scale.to(self.device)
+
+        tic = time.time()
+        loc, conf, landms = self.net(imgs)  # forward pass
+        print('net forward time: {:.4f}'.format(time.time() - tic))
+
+        priorbox = PriorBox(self.cfg, image_size=(im_height, im_width))
+        priors = priorbox.forward()
+        priors = priors.to(self.device)
+        prior_data = priors.data
+
+        list_results = []
+        for idx in range(batch_size):
+            boxes = decode(loc.data[idx], prior_data, self.cfg['variance'])
+            boxes = boxes * scale / self.resize
+            boxes = boxes.cpu().numpy()
+            scores = conf.data[idx].cpu().numpy()[:, 1]
+            keypoints = decode_landm(landms[idx].data, prior_data, self.cfg['variance'])
+            scale1 = torch.Tensor([
+                imgs.shape[3], imgs.shape[2], imgs.shape[3], imgs.shape[2],
+                imgs.shape[3], imgs.shape[2], imgs.shape[3], imgs.shape[2],
+                imgs.shape[3], imgs.shape[2]])
+
+            scale1 = scale1.to(self.device)
+            keypoints = keypoints * scale1 / self.resize
+            keypoints = keypoints.cpu().numpy()
+
+            # ignore low scores
+            inds = np.where(scores > self.confidence_threshold)[0]
+            boxes = boxes[inds]
+            keypoints = keypoints[inds]
+            scores = scores[inds]
+
+            # keep top-K before NMS
+            order = scores.argsort()[::-1][:self.top_k]
+            boxes = boxes[order]
+            keypoints = keypoints[order]
+            scores = scores[order]
+
+            # do NMS
+            dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
+            keep = py_cpu_nms(dets, self.nms_threshold)
+            # keep = nms(dets, self.nms_threshold,force_cpu=self.cpu)
+            dets = dets[keep, :]
+            keypoints = keypoints[keep]
+
+            # keep top-K faster NMS
+            dets = dets[:self.keep_top_k, :]
+            keypoints = keypoints[:self.keep_top_k, :]
+
+            dets = np.concatenate((dets, keypoints), axis=1)
+
+            # show image
+            if self.show_image:
+                for b in dets:
+                    if b[4] < self.vis_thres:
+                        continue
+                    text = "{:.4f}".format(b[4])
+                    b = list(map(int, b))
+                    cv2.rectangle(img_raw, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
+                    cx = b[0]
+                    cy = b[1] + 12
+                    cv2.putText(img_raw, text, (cx, cy),
+                                cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
+
+                    # keypoints
+                    cv2.circle(img_raw, (b[5], b[6]), 1, (0, 0, 255), 4)
+                    cv2.circle(img_raw, (b[7], b[8]), 1, (0, 255, 255), 4)
+                    cv2.circle(img_raw, (b[9], b[10]), 1, (255, 0, 255), 4)
+                    cv2.circle(img_raw, (b[11], b[12]), 1, (0, 255, 0), 4)
+                    cv2.circle(img_raw, (b[13], b[14]), 1, (255, 0, 0), 4)
+
+                    # Show image
+                    cv2.imshow('result', img_raw)
+                    cv2.waitKey(100)
+
+            results = []
+            for det in dets:
+                box = det[:4]
+                score = det[4]
+                keypoints = det[5:]
+
+                if score < self.vis_thres:
+                    continue
+                results.append({'box':box.tolist(), 'score':score.tolist(), 'keypoints':keypoints.tolist()})
+            
+            list_results.append(results)
+
+        return list_results
