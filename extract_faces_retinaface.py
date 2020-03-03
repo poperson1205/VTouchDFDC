@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
     skip_count = 0
     for folder_name in tqdm(os.listdir(DATA_ROOT)):
-        if skip_count < 2:
+        if skip_count < 5:
             skip_count += 1
             continue
 
@@ -74,8 +74,9 @@ if __name__ == '__main__':
                 continue
 
             video_path = os.path.join(DATA_ROOT, folder_name + '/' + video_name)
+            print(video_name)
 
-            frame_indices, frames = get_frames(video_path, 32)
+            frame_indices, frames = get_frames(video_path, 28)
             if len(frames) == 0:
                 print('%s: Failed to get images from video' % (video_name))
                 continue
@@ -144,5 +145,3 @@ if __name__ == '__main__':
 
         with open(os.path.join(output_folder, 'metadata.json'), "w") as fp:
             json.dump(metadata, fp)
-
-        break
