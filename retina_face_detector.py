@@ -104,7 +104,7 @@ class RetinaFaceDetector:
 
         tic = time.time()
         loc, conf, landms = self.net(img)  # forward pass
-        print('net forward time: {:.4f}'.format(time.time() - tic))
+        # print('net forward time: {:.4f}'.format(time.time() - tic))
 
         priorbox = PriorBox(self.cfg, image_size=(im_height, im_width))
         priors = priorbox.forward()
@@ -200,7 +200,7 @@ class RetinaFaceDetector:
 
         tic = time.time()
         loc, conf, landms = self.net(imgs)  # forward pass
-        print('net forward time: {:.4f}'.format(time.time() - tic))
+        # print('net forward time: {:.4f}'.format(time.time() - tic))
 
         priorbox = PriorBox(self.cfg, image_size=(im_height, im_width))
         priors = priorbox.forward()
