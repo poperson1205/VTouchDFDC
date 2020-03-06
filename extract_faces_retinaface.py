@@ -54,8 +54,11 @@ if __name__ == '__main__':
         os.mkdir(OUTPUT_ROOT)
 
     skip_count = 0
+    # Note
+    # - dfdc_train_part_36/qchgluoajg.mp4 --> CUDA memory allocation failed
+    # - folder 18th ~ 34 complete (32 samples per video)
     for folder_name in tqdm(os.listdir(DATA_ROOT)):
-        if skip_count < 5:
+        if skip_count < 19:
             skip_count += 1
             continue
 
@@ -69,14 +72,19 @@ if __name__ == '__main__':
             os.mkdir(output_folder)
         
         # Extract original videos only
+        skip_count2 = 0
         for video_name, attributes in tqdm(metadata.items()):
+            # if skip_count < 1325:
+            #     skip_count += 1
+            #     continue
+
             if attributes['label'] == 'FAKE':
                 continue
 
             video_path = os.path.join(DATA_ROOT, folder_name + '/' + video_name)
             print(video_name)
 
-            frame_indices, frames = get_frames(video_path, 28)
+            frame_indices, frames = get_frames(video_path, 32)
             if len(frames) == 0:
                 print('%s: Failed to get images from video' % (video_name))
                 continue
@@ -145,3 +153,5 @@ if __name__ == '__main__':
 
         with open(os.path.join(output_folder, 'metadata.json'), "w") as fp:
             json.dump(metadata, fp)
+
+        
