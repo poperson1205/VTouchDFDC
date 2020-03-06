@@ -1,6 +1,7 @@
 import os, sys, random
 import numpy as np
 import pandas as pd
+import json
 import cv2
 
 import torch
@@ -8,16 +9,67 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.transforms import Normalize
 
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 from efficientnet_pytorch import EfficientNet
 
-crops_dir = '../deep-faces/faces_224'
+ROOT_DIR = '/media/vtouchinc02/database/RawData/deepfake-faces-retinaface/'
+
+def get_dataframe(root_dir, folder_name):
+    crops_dir = os.path.join(root_dir, folder_name)
+
+    with open(os.path.join(crops_dir, 'metadata.json'), 'r') as fp:
+        metadata = json.load(fp)
+
+    list_videoname = []
+    list_original_width = []
+    list_original_height = []
+    list_label = []
+    list_original = []
+    for video_name, attributes in tqdm(metadata.items()):
+        if not ('face' in attributes):
+            continue
+
+        for frame_index, detection_results in attributes['face'].items():
+            for face_index, detection_result in enumerate(detection_results):
+                img_name = '%s-%d-%d.png' % (video_name[:-4], int(frame_index), face_index)
+                if os.path.isfile(os.path.join(crops_dir, img_name)):
+                    list_videoname.append(folder_name + '/' + img_name)
+                    list_original_width.append(224)
+                    list_original_height.append(224)
+                    list_label.append(attributes['label'])
+                    if attributes['label'] == 'FAKE':
+                        original_video_name = attributes['original']
+                        original_img_name = '%s-%d-%d.png' % (original_video_name[:-4], int(frame_index), face_index)
+                        list_original.append(folder_name + '/' + original_img_name)
+                    else:
+                        list_original.append('')
+
+    metadata_df = pd.DataFrame({
+        'videoname':list_videoname,
+        'original_width':list_original_width,
+        'original_height':list_original_height,
+        'label':list_label,
+        'original':list_original
+        })
+    
+    return metadata_df
+
+# list_metadata_df = []
+# for dir_name in tqdm(os.listdir(ROOT_DIR)):
+#     print(dir_name)
+#     if os.path.isfile(os.path.join(os.path.join(ROOT_DIR, dir_name), 'metadata.json')):
+#         list_metadata_df.append(get_dataframe(ROOT_DIR, dir_name))
+# metadata_df = pd.concat(list_metadata_df)
+
+# # Save dataframe
+# metadata_df.to_csv(os.path.join(ROOT_DIR, 'metadata.csv'))
+
+# Read dataframe
+metadata_df = pd.read_csv(os.path.join(ROOT_DIR, 'metadata.csv'))
 
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-metadata_df = pd.read_csv('../deep-faces/metadata.csv')
 
 image_size = 224
 batch_size = 32
@@ -32,15 +84,14 @@ def load_image_as_tensor(image_path, image_size=224):
     return normalize_transform(torch.tensor(img).permute((2, 0, 1)).float().div(255))
 
 
-
 from torch.utils.data import Dataset
 
 
 
 class VideoDataset(Dataset):
     
-    def __init__(self, crops_dir, df, split, image_size=224, sample_size=None, seed=None):
-        self.crops_dir = crops_dir
+    def __init__(self, root_dir, df, split, image_size=224, sample_size=None, seed=None):
+        self.root_dir = root_dir
         self.split = split
         self.image_size = image_size
 
@@ -62,9 +113,9 @@ class VideoDataset(Dataset):
 
     def __getitem__(self, index):
         row = self.df.iloc[index]
-        file_name = row['videoname'][:-4] + '.jpg'
+        file_name = row['videoname']
         class_index = 1 if row['label'] == 'FAKE' else 0
-        image_tensor = load_image_as_tensor(os.path.join(crops_dir, file_name), self.image_size)
+        image_tensor = load_image_as_tensor(os.path.join(self.root_dir, file_name), self.image_size)
         return image_tensor, class_index
 
     def __len__(self):
@@ -72,7 +123,7 @@ class VideoDataset(Dataset):
 
 
 
-def make_splits(crops_dir, metadata_df, frac):
+def make_splits(metadata_df, frac):
     real_rows = metadata_df[metadata_df['label'] == 'REAL']
     real_df = real_rows.sample(frac=frac, random_state=666)
     fake_df = metadata_df[metadata_df['original'].isin(real_df['videoname'])]
@@ -85,18 +136,18 @@ def make_splits(crops_dir, metadata_df, frac):
 
 from torch.utils.data import DataLoader
 
-def create_data_loaders(crops_dir, metadata_df, image_size, batch_size, num_workers):
-    train_df, val_df = make_splits(crops_dir, metadata_df, frac=0.05)
+def create_data_loaders(root_dir, metadata_df, image_size, batch_size, num_workers):
+    train_df, val_df = make_splits(metadata_df, frac=0.001)
 
-    train_dataset = VideoDataset(crops_dir, train_df, 'train', image_size, sample_size=10000)
+    train_dataset = VideoDataset(root_dir, train_df, 'train', image_size, sample_size=10000)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
-    val_dataset = VideoDataset(crops_dir, val_df, 'val', image_size, sample_size=500, seed=1234)
+    val_dataset = VideoDataset(root_dir, val_df, 'val', image_size, sample_size=100, seed=1234)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
     
     return train_loader, val_loader
 
-train_loader, val_loader = create_data_loaders(crops_dir, metadata_df, image_size, batch_size, num_workers=0)
+train_loader, val_loader = create_data_loaders(ROOT_DIR, metadata_df, image_size, batch_size, num_workers=0)
 
 
 
