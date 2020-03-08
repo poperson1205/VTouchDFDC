@@ -13,7 +13,7 @@ import retina_face_detector
 
 from tqdm import tqdm
 
-DATA_ROOT = '/media/vtouchinc02/database/RawData/deepfake'
+DATA_ROOT = '/media/vtouchinc02/database/RawData/deepfake-43'
 OUTPUT_ROOT = '/media/vtouchinc02/database/RawData/deepfake-faces-retinaface'
 
 def get_frames(video_path, num_frames=17):
@@ -52,16 +52,11 @@ if __name__ == '__main__':
 
     if not os.path.isdir(OUTPUT_ROOT):
         os.mkdir(OUTPUT_ROOT)
-
-    skip_count = 0
+    
     # Note
     # - dfdc_train_part_36/qchgluoajg.mp4 --> CUDA memory allocation failed
     # - folder 18th ~ 34 complete (32 samples per video)
-    for folder_name in tqdm(os.listdir(DATA_ROOT)):
-        if skip_count < 19:
-            skip_count += 1
-            continue
-
+    for folder_count, folder_name in tqdm(enumerate(os.listdir(DATA_ROOT))):
         print(folder_name)
         metadata_path = os.path.join(DATA_ROOT, folder_name + '/metadata.json')
         with open(metadata_path) as metadata_fp:
@@ -72,25 +67,30 @@ if __name__ == '__main__':
             os.mkdir(output_folder)
         
         # Extract original videos only
-        skip_count2 = 0
-        for video_name, attributes in tqdm(metadata.items()):
-            # if skip_count < 1325:
-            #     skip_count += 1
-            #     continue
-
+        for video_index, (video_name, attributes) in tqdm(enumerate(metadata.items())):
             if attributes['label'] == 'FAKE':
                 continue
 
             video_path = os.path.join(DATA_ROOT, folder_name + '/' + video_name)
-            print(video_name)
+            # print(video_name)
 
             frame_indices, frames = get_frames(video_path, 32)
             if len(frames) == 0:
                 print('%s: Failed to get images from video' % (video_name))
                 continue
 
-            results = {}
             list_detection_results = detector.detect_faces_batch(frames)
+
+            # if video_index < 1325:
+            #     list_detection_results = detector.detect_faces_batch(frames)
+            # else:
+            #     list_detection_results_1 = detector.detect_faces_batch(frames[:8])
+            #     list_detection_results_2 = detector.detect_faces_batch(frames[8:16])
+            #     list_detection_results_3 = detector.detect_faces_batch(frames[16:24])
+            #     list_detection_results_4 = detector.detect_faces_batch(frames[24:32])
+            #     list_detection_results = list_detection_results_1 + list_detection_results_2 + list_detection_results_3 + list_detection_results_4
+
+            results = {}
             for frame_index, frame, detection_results in zip(frame_indices, frames, list_detection_results):
                 if detection_results is None:
                     continue
@@ -109,45 +109,45 @@ if __name__ == '__main__':
             attributes['face'] = results
         
         
-        # Extract fake videos using the original detection result
-        for video_name, attributes in tqdm(metadata.items()):            
-            if attributes['label'] != 'FAKE':
-                continue
+        # # Extract fake videos using the original detection result
+        # for video_name, attributes in tqdm(metadata.items()):            
+        #     if attributes['label'] != 'FAKE':
+        #         continue
 
-            original_name = attributes['original']
-            if not 'face' in metadata[original_name]:
-                continue
+        #     original_name = attributes['original']
+        #     if not 'face' in metadata[original_name]:
+        #         continue
 
-            original_results = metadata[original_name]['face']
-            if not original_results:
-                continue
+        #     original_results = metadata[original_name]['face']
+        #     if not original_results:
+        #         continue
 
-            video_path = os.path.join(DATA_ROOT, folder_name + '/' + video_name)            
-            frame_indices, frames = get_frames(video_path, 32)
-            if len(frames) == 0:
-                print('%s: Failed to get images from video' % (video_name))
-                continue
+        #     video_path = os.path.join(DATA_ROOT, folder_name + '/' + video_name)            
+        #     frame_indices, frames = get_frames(video_path, 32)
+        #     if len(frames) == 0:
+        #         print('%s: Failed to get images from video' % (video_name))
+        #         continue
 
-            results = {}
-            for frame_index, frame in zip(frame_indices, frames):
-                if not (str(frame_index) in original_results):
-                    continue
+        #     results = {}
+        #     for frame_index, frame in zip(frame_indices, frames):
+        #         if not (str(frame_index) in original_results):
+        #             continue
 
-                detection_results = original_results[str(frame_index)]
-                if detection_results is None:
-                    continue
+        #         detection_results = original_results[str(frame_index)]
+        #         if detection_results is None:
+        #             continue
                 
-                results[frame_index] = detection_results
-                for face_index, detection_result in enumerate(detection_results):
-                    box = np.array(detection_result['box'])
-                    box = box.astype(int)
-                    face = frame[box[1]:box[3], box[0]:box[2]]
-                    if face.size == 0:
-                        continue
-                    path = os.path.join(output_folder, '%s-%d-%d.png' % (video_name[:-4], frame_index, face_index))
-                    cv2.imwrite(path, cv2.resize(face, (image_size, image_size)))
+        #         results[frame_index] = detection_results
+        #         for face_index, detection_result in enumerate(detection_results):
+        #             box = np.array(detection_result['box'])
+        #             box = box.astype(int)
+        #             face = frame[box[1]:box[3], box[0]:box[2]]
+        #             if face.size == 0:
+        #                 continue
+        #             path = os.path.join(output_folder, '%s-%d-%d.png' % (video_name[:-4], frame_index, face_index))
+        #             cv2.imwrite(path, cv2.resize(face, (image_size, image_size)))
 
-            attributes['face'] = results
+        #     attributes['face'] = results
 
 
 
