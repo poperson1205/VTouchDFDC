@@ -19,13 +19,13 @@ def get_frames(video_path, frame_idxs):
         ret = capture.grab()
         if not ret:
             print("Error grabbing frame %d from movie %s" % (frame_idx, video_path))
-            continue
+            break
         current = len(idxs_read)
         if frame_idx == frame_idxs[current]:
             ret, frame = capture.retrieve()
             if not ret or frame is None:
                 print("Error retrieving frame %d from movie %s" % (frame_idx, video_path))
-                continue
+                break
             frames.append(frame)
             idxs_read.append(frame_idx)
 
