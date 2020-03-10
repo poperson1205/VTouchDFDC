@@ -14,11 +14,13 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from efficientnet_pytorch import EfficientNet
 
+from tqdm import tqdm
+
 ROOT_DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame/'
 
 # Read dataframe
 list_metadata_df = []
-list_folder_index = range(0, 45)
+list_folder_index = range(0, 50, 5)
 for i in list_folder_index:
     folder_name = 'dfdc_train_part_%d' % i
     list_metadata_df.append(pd.read_csv('metadata_%d.csv' % i))
@@ -62,7 +64,7 @@ class VideoDataset(Dataset):
         return image_tensor, class_index
 
     def __len__(self):
-        return len(self.df)
+        return len(self.df) * 2
 
 
 
@@ -88,12 +90,12 @@ import torch.optim as optim
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-for epoch in range(5):
+for epoch in range(3):
     
     bce_loss = 0.0
     total_examples = 0
 
-    for batch_idx, data in enumerate(train_loader):
+    for data in tqdm(train_loader):
         batch_size = data[0].shape[0]
         x = data[0].to(gpu)
         y_true = data[1].to(gpu).float()
@@ -111,7 +113,7 @@ for epoch in range(5):
         bce_loss += batch_bce * batch_size
         total_examples += batch_size
 
-        print('Progress: %3d / %3d, batch BCE: %.4f' % (batch_idx+1, len(train_loader), batch_bce))
+        print('batch BCE: %.4f' % (batch_bce))
 
     bce_loss /= total_examples
     print('Epoch: %3d, train BCE: %.4f' % (epoch+1, bce_loss))
