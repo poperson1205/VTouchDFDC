@@ -3,7 +3,7 @@ import json
 import os
 import math
 
-test_dataset_dir = '../deepfake-detection-challenge/train_sample_videos'
+test_dataset_dir = '/media/vtouchinc02/database/RawData/deepfake/dfdc_train_part_48'
 
 if __name__ == '__main__':
     # Ground truth
