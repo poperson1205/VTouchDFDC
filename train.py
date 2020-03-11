@@ -20,7 +20,7 @@ ROOT_DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame/'
 
 # Read dataframe
 list_metadata_df = []
-list_folder_index = range(0, 50, 5)
+list_folder_index = range(2, 48)
 for i in list_folder_index:
     folder_name = 'dfdc_train_part_%d' % i
     list_metadata_df.append(pd.read_csv('metadata_%d.csv' % i))
@@ -50,9 +50,9 @@ class VideoDataset(Dataset):
     def __init__(self, root_dir, df, image_size=224):
         self.root_dir = root_dir
         self.image_size = image_size
-        self.df = df
+        self.df = df.sample(frac=0.1).reset_index(drop=True)
         
-        num_fake_imgs = len(df)
+        num_fake_imgs = len(self.df)
         print('# fake images: %d' % num_fake_imgs)
 
     def __getitem__(self, index):
@@ -90,7 +90,7 @@ import torch.optim as optim
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-for epoch in range(3):
+for epoch in range(1):
     
     bce_loss = 0.0
     total_examples = 0
