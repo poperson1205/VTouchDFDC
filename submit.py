@@ -3,7 +3,7 @@ MODE = 'LOCAL'
 
 if MODE == 'LOCAL':
     model_parameter_path = './binary_classifier.pth'
-    test_dataset_dir = '/media/vtouchinc02/database/RawData/deepfake/dfdc_train_part_48'
+    test_dataset_dir = '/media/vtouchinc02/database/RawData/deepfake/dfdc_train_part_0'
     output_submission_file_path = './submission.csv'
     metadata_path = test_dataset_dir + '/metadata.json'
 elif MODE == 'KAGGLE':
@@ -12,7 +12,6 @@ elif MODE == 'KAGGLE':
     output_submission_file_path = '/kaggle/working/submission.csv'
     efficientnet_pakage_path = '../input/efficientnetpytorch/EfficientNet-PyTorch'
     sys.path.append(efficientnet_pakage_path)
-    os.system('pip install /kaggle/input/mtcnnwheel/mtcnn-0.1.0-py3-none-any.whl')
 
 import os, sys, random
 import numpy as np
@@ -31,7 +30,7 @@ import matplotlib.pyplot as plt
 
 from efficientnet_pytorch import EfficientNet
 
-import retina_face_detector
+from retina_face_detector import RetinaFaceDetector
 
 
 
@@ -40,7 +39,7 @@ mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 normalize_transform = Normalize(mean,std)
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-detector = retina_face_detector.RetinaFaceDetector(
+detector = RetinaFaceDetector(
     network='mobile0.25',
     trained_model='weights/mobilenet0.25_Final.pth',
     vis_thres=0.9,
@@ -150,10 +149,10 @@ elif MODE == 'LOCAL':
         else:
             fake_videos.append(filename)
 
-    real_videos_sampled = random.sample(real_videos, 100)
-    fake_videos_sampled = random.sample(fake_videos, 100)
+    real_videos_sampled = random.sample(real_videos, 80)
+    fake_videos_sampled = random.sample(fake_videos, 80)
 
-    for i in tqdm(range(100)):
+    for i in tqdm(range(80)):
         filename = real_videos_sampled[i]
         filepath = os.path.join(test_dataset_dir, filename)
         prediction = predict(filepath)
