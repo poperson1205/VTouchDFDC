@@ -7,7 +7,7 @@ import cv2
 import json
 from PIL import Image
 
-DIR = '/media/vtouchinc02/database/RawData/deepfake-faces-retinaface-json-backup-clean-fake-results-images/dfdc_train_part_0'
+DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame/dfdc_train_part_0'
 
 meta_path = os.path.join(DIR, 'metadata.json')
 with open(meta_path) as f:
@@ -38,9 +38,13 @@ with open(meta_path) as f:
 
                 img_diff =  cv2.absdiff(img, img_original)
                 img_diff = cv2.cvtColor(img_diff, cv2.COLOR_RGB2GRAY)
+                min_val, max_val, _, __ = cv2.minMaxLoc(img_diff)
+                print('min: %d, max: %d' % (min_val, max_val))
                 # img_diff = cv2.normalize(img_diff, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                _, img_diff_thresholded = cv2.threshold(img_diff, 8, maxval=255, type=cv2.THRESH_BINARY)
-                img_diff_thresholded_opened = cv2.morphologyEx(img_diff_thresholded, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT,(3,3)))
+                img_diff_thresholded = cv2.normalize(img_diff, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                # _, img_diff_thresholded = cv2.threshold(img_diff, 32, maxval=255, type=cv2.THRESH_BINARY)
+                # img_diff_thresholded_opened = cv2.morphologyEx(img_diff_thresholded, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT,(3,3)))
+                img_diff_thresholded_opened = img_diff_thresholded
 
                 cv2.imshow('original', img_original)
                 cv2.imshow('fake', img)
