@@ -17,13 +17,13 @@ from efficientnet_pytorch import EfficientNet
 from tqdm import tqdm
 
 ROOT_DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame/'
+CSV_DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame-csv/'
 
 # Read dataframe
 list_metadata_df = []
 list_folder_index = range(2, 48)
 for i in list_folder_index:
-    folder_name = 'dfdc_train_part_%d' % i
-    list_metadata_df.append(pd.read_csv('metadata_%d.csv' % i))
+    list_metadata_df.append(pd.read_csv(os.path.join(CSV_DIR, 'metadata_%d.csv' % i)))
 metadata_df = pd.concat(list_metadata_df)
 
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -50,21 +50,23 @@ class VideoDataset(Dataset):
     def __init__(self, root_dir, df, image_size=224):
         self.root_dir = root_dir
         self.image_size = image_size
-        self.df = df.sample(frac=0.1).reset_index(drop=True)
+        self.df1 = df.sample(frac=0.1).reset_index(drop=True)
+        self.df2 = df.sample(frac=0.1).reset_index(drop=True)
         
-        num_fake_imgs = len(self.df)
+        num_fake_imgs = len(self.df1)
         print('# fake images: %d' % num_fake_imgs)
 
     def __getitem__(self, index):
         is_fake = True if index % 2 == 0 else False
         class_index = 1 if is_fake else 0
-        row = self.df.iloc[int(index/2)]
-        file_name = row['image_name'] if is_fake else row['original']
+        row1 = self.df1.iloc[int(index/2)]
+        row2 = self.df2.iloc[int(index/2)]
+        file_name = row1['image_name'] if is_fake else row2['original']
         image_tensor = load_image_as_tensor(os.path.join(self.root_dir, file_name), self.image_size)
         return image_tensor, class_index
 
     def __len__(self):
-        return len(self.df) * 2
+        return len(self.df1) * 2
 
 
 
