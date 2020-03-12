@@ -21,10 +21,10 @@ CSV_DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame-csv/'
 
 # Read dataframe
 list_metadata_df = []
-list_folder_index = range(0, 1)
+list_folder_index = range(2, 48)
 for i in list_folder_index:
     list_metadata_df.append(pd.read_csv(os.path.join(CSV_DIR, 'metadata_%d.csv' % i)))
-metadata_df = pd.concat(list_metadata_df).sample(frac=1).reset_index(drop=True)
+metadata_df = pd.concat(list_metadata_df)
 
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -63,29 +63,31 @@ class VideoDataset(Dataset):
     def __init__(self, root_dir, df, image_size=224):
         self.root_dir = root_dir
         self.image_size = image_size
-        self.df = df
+        self.df1 = df.sample(frac=0.1).reset_index(drop=True)
+        self.df2 = df.sample(frac=0.1).reset_index(drop=True)
         
-        num_fake_imgs = len(self.df)
+        num_fake_imgs = len(self.df1)
         print('# fake images: %d' % num_fake_imgs)
 
     def __getitem__(self, index):
-        row = self.df.iloc[index]
+        row1 = self.df1.iloc[int(index/2)]
+        row2 = self.df2.iloc[int(index/2)]
         # FAKE
         if index % 2 == 0:
-            image_name = row['image_name']
-            original_name = row['original']
+            image_name = row1['image_name']
+            original_name = row1['original']
             image_path = os.path.join(self.root_dir, image_name)
             original_path = os.path.join(self.root_dir, original_name)
             image_tensor, mask_tensor = load_image_and_mask_as_tensor(image_path, original_path, self.image_size)
             return image_tensor, mask_tensor.unsqueeze(0)
         #REAL
         else:
-            original_name = row['original']
+            original_name = row2['original']
             original_tensor = load_image_as_tensor(os.path.join(self.root_dir, original_name), self.image_size)
             return original_tensor, torch.zeros(size=(1, self.image_size, self.image_size))
 
     def __len__(self):
-        return len(self.df)
+        return len(self.df1) * 2
 
 
 
