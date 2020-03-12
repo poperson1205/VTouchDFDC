@@ -12,9 +12,6 @@ import torch.nn.functional as F
 from torchvision.transforms import Normalize
 from unet import UNet
 
-def sigmoid(X):
-   return 1/(1+np.exp(-X))
-
 image_size = 224
 batch_size = 16
 mean = [0.485, 0.456, 0.406]
@@ -75,9 +72,8 @@ with open(meta_path) as f:
                 # cv2.imshow('diff', cv2.resize(img_diff, None, None, 0.3, 0.3))
 
                 img_tensor = convert_image_as_tensor(img).unsqueeze(0).to(gpu)
-                img_output = model(img_tensor)[0].data.cpu().float().numpy()
+                img_output = torch.sigmoid(model(img_tensor)[0]).data.cpu().float().numpy()
                 img_output = img_output.transpose(1, 2, 0)
-                img_output = sigmoid(img_output)
                 # img_output = cv2.normalize(img_output, None, alpha=0.0, beta=1.0, norm_type=cv2.NORM_MINMAX)
                 cv2.imshow('fake output', img_output)
 
@@ -87,9 +83,8 @@ with open(meta_path) as f:
                 cv2.imshow('original', img_original)
 
                 img_tensor_original = convert_image_as_tensor(img_original).unsqueeze(0).to(gpu)
-                img_output_original = model(img_tensor_original)[0].data.cpu().float().numpy()
+                img_output_original = torch.sigmoid(model(img_tensor_original)[0]).data.cpu().float().numpy()
                 img_output_original = img_output_original.transpose(1, 2, 0)
-                img_output_original = sigmoid(img_output_original)
                 # img_output = cv2.normalize(img_output, None, alpha=0.0, beta=1.0, norm_type=cv2.NORM_MINMAX)
                 cv2.imshow('original output', img_output_original)
                 
