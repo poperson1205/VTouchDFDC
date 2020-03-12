@@ -21,7 +21,7 @@ CSV_DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame-csv/'
 
 # Read dataframe
 list_metadata_df = []
-list_folder_index = range(2, 48)
+list_folder_index = range(0, 50)
 for i in list_folder_index:
     list_metadata_df.append(pd.read_csv(os.path.join(CSV_DIR, 'metadata_%d.csv' % i)))
 metadata_df = pd.concat(list_metadata_df)
@@ -29,7 +29,7 @@ metadata_df = pd.concat(list_metadata_df)
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 image_size = 224
-batch_size = 64
+batch_size = 96
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 normalize_transform = Normalize(mean,std)
