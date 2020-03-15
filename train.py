@@ -24,7 +24,11 @@ list_metadata_df = []
 list_folder_index = range(0, 50)
 for i in list_folder_index:
     list_metadata_df.append(pd.read_csv(os.path.join(CSV_DIR, 'metadata_%d.csv' % i)))
-metadata_df = pd.concat(list_metadata_df)
+metadata_df = pd.concat(list_metadata_df, ignore_index=True)
+
+metadata_fake_df = pd.DataFrame({'image_name': metadata_df['image_name'], 'label': ['FAKE' for i in range(len(metadata_df))]}).sample(frac=0.5).reset_index(drop=True)
+metadata_real_df = pd.DataFrame({'image_name': metadata_df['original'], 'label' : ['REAL' for i in range(len(metadata_df))]}).sample(frac=0.5).reset_index(drop=True)
+metadata_df = pd.concat([metadata_fake_df, metadata_real_df], ignore_index=True)
 
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -50,23 +54,21 @@ class VideoDataset(Dataset):
     def __init__(self, root_dir, df, image_size=224):
         self.root_dir = root_dir
         self.image_size = image_size
-        self.df1 = df.sample(frac=0.1).reset_index(drop=True)
-        self.df2 = df.sample(frac=0.1).reset_index(drop=True)
+        self.df = df
+        # self.df = df.sample(frac=1).reset_index(drop=True)
         
-        num_fake_imgs = len(self.df1)
+        num_fake_imgs = len(self.df)
         print('# fake images: %d' % num_fake_imgs)
 
     def __getitem__(self, index):
-        is_fake = True if index % 2 == 0 else False
-        class_index = 1 if is_fake else 0
-        row1 = self.df1.iloc[int(index/2)]
-        row2 = self.df2.iloc[int(index/2)]
-        file_name = row1['image_name'] if is_fake else row2['original']
+        row = self.df.iloc[index]
+        class_index = 1 if row['label'] == 'FAKE' else 0
+        file_name = row['image_name']
         image_tensor = load_image_as_tensor(os.path.join(self.root_dir, file_name), self.image_size)
         return image_tensor, class_index
 
     def __len__(self):
-        return len(self.df1) * 2
+        return len(self.df)
 
 
 
@@ -74,7 +76,7 @@ from torch.utils.data import DataLoader
 
 def create_data_loaders(root_dir, metadata_df, image_size, batch_size, num_workers):
     dataset = VideoDataset(root_dir, metadata_df, image_size)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
     
     return loader
 
