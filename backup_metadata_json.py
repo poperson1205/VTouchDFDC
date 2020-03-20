@@ -4,8 +4,8 @@ import sys
 
 from tqdm import tqdm
 
-DATA_ROOT = '/media/vtouchinc02/database/RawData/deepfake-faces-retinaface'
-OUTPUT_ROOT = '/media/vtouchinc02/database/RawData/deepfake-faces-retinaface-json-backup'
+DATA_ROOT = '/media/vtouchinc02/database/RawData/deepfake-32frame'
+OUTPUT_ROOT = '/media/vtouchinc02/database/RawData/deepfake-32frame-json-backup'
 
 if __name__ == '__main__':
     if not os.path.isdir(OUTPUT_ROOT):
