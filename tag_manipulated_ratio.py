@@ -44,6 +44,7 @@ def tag_manipulated_ratio(start_index, end_index):
 
             if not ('face' in att_original):
                 print('No face detected: %s' % video_name_original)
+                continue
             
             att['face'] = copy.deepcopy(att_original['face'])
             face_results = att['face']
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     if not os.path.isdir(OUTPUT_ROOT):
         os.mkdir(OUTPUT_ROOT)
 
-    tag_manipulated_ratio(0, 10)
+    tag_manipulated_ratio(30, 40)
 
     # threads = []
     # threads.append(Thread(target=tag_manipulated_ratio, args=(0,5)))
