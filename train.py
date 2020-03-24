@@ -23,25 +23,47 @@ CSV_DIR = '/media/vtouchinc02/database/RawData/deepfake-32frame-csv/'
 list_metadata_df = []
 list_folder_index = range(0, 50)
 for i in list_folder_index:
-    list_metadata_df.append(pd.read_csv(os.path.join(CSV_DIR, 'metadata_%d.csv' % i)))
+    list_metadata_df.append(pd.read_csv(os.path.join(CSV_DIR, 'metadata_%d.csv' % i)).sample(frac=0.1, random_state=i).reset_index(drop=True))
 metadata_df = pd.concat(list_metadata_df, ignore_index=True)
+metadata_df = metadata_df.loc[metadata_df['manipulated_ratio'] > 0.001]
 
-metadata_fake_df = pd.DataFrame({'image_name': metadata_df['image_name'], 'label': ['FAKE' for i in range(len(metadata_df))]}).sample(frac=0.5).reset_index(drop=True)
-metadata_real_df = pd.DataFrame({'image_name': metadata_df['original'], 'label' : ['REAL' for i in range(len(metadata_df))]}).sample(frac=0.5).reset_index(drop=True)
+metadata_fake_df = pd.DataFrame({'image_name': metadata_df['image_name'], 'label': ['FAKE' for i in range(len(metadata_df))]}).sample(frac=1.0, random_state=1).reset_index(drop=True)
+metadata_real_df = pd.DataFrame({'image_name': metadata_df['original'], 'label' : ['REAL' for i in range(len(metadata_df))]}).sample(frac=1.0, random_state=2).reset_index(drop=True)
 metadata_df = pd.concat([metadata_fake_df, metadata_real_df], ignore_index=True)
 
 gpu = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 image_size = 224
-batch_size = 96
+batch_size = 8
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 normalize_transform = Normalize(mean,std)
 
+def isotropically_resize_image(img, size, resample=cv2.INTER_AREA):
+    h, w = img.shape[:2]
+    if w > h:
+        h = h * size // w
+        w = size
+    else:
+        w = w * size // h
+        h = size
+    resized = cv2.resize(img, (w, h), interpolation=resample)
+    return resized
+
+def make_square_image(img):
+    h, w = img.shape[:2]
+    size = max(h, w)
+    t = 0
+    b = size - h
+    l = 0
+    r = size - w
+    return cv2.copyMakeBorder(img, t, b, l, r, cv2.BORDER_CONSTANT, value=0)
+
 def load_image_as_tensor(image_path, image_size=224):
     img = cv2.imread(image_path)
+    img = isotropically_resize_image(img, image_size)
+    img = make_square_image(img)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cv2.resize(img, (image_size, image_size))
     return normalize_transform(torch.tensor(img).permute((2, 0, 1)).float().div(255))
 
 
@@ -84,7 +106,7 @@ train_loader = create_data_loaders(ROOT_DIR, metadata_df, image_size, batch_size
 
 
 
-model = EfficientNet.from_pretrained('efficientnet-b0', num_classes=1)
+model = EfficientNet.from_pretrained('efficientnet-b7', num_classes=1)
 model.cuda()
 
 
@@ -99,6 +121,7 @@ for epoch in range(1):
     bce_loss = 0.0
     total_examples = 0
 
+    step_count = 0
     for data in tqdm(train_loader):
         batch_size = data[0].shape[0]
         x = data[0].to(gpu)
@@ -119,10 +142,14 @@ for epoch in range(1):
 
         print('batch BCE: %.4f' % (batch_bce))
 
+        step_count += 1
+        if step_count % 1000 == 0:
+            torch.save(model.state_dict(), 'binary_classifier_efficientnet_b7_%d.pth' % step_count)
+
     bce_loss /= total_examples
     print('Epoch: %3d, train BCE: %.4f' % (epoch+1, bce_loss))
 
 
 print('Finished Training')
 
-torch.save(model.state_dict(), 'binary_classifier.pth')
+torch.save(model.state_dict(), 'binary_classifier_efficientnet_b7.pth')
